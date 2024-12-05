@@ -18,7 +18,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Once;
 use std::task::{Context, Poll};
 
-pub(crate) type OsStorage = Vec<SignalInfo>;
+pub(crate) type OsStorage = Box<[SignalInfo]>;
 
 impl Init for OsStorage {
     fn init() -> Self {
@@ -258,7 +258,7 @@ fn signal_enable(signal: SignalKind, handle: &Handle) -> io::Result<()> {
     if signal < 0 || signal_hook_registry::FORBIDDEN.contains(&signal) {
         return Err(Error::new(
             ErrorKind::Other,
-            format!("Refusing to register signal {}", signal),
+            format!("Refusing to register signal {signal}"),
         ));
     }
 
@@ -485,10 +485,12 @@ impl Signal {
 }
 
 // Work around for abstracting streams internally
+#[cfg(feature = "process")]
 pub(crate) trait InternalStream {
     fn poll_recv(&mut self, cx: &mut Context<'_>) -> Poll<Option<()>>;
 }
 
+#[cfg(feature = "process")]
 impl InternalStream for Signal {
     fn poll_recv(&mut self, cx: &mut Context<'_>) -> Poll<Option<()>> {
         self.poll_recv(cx)
